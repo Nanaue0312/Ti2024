@@ -37,6 +37,8 @@
 #include "UserFilters.h"
 #include "Encoder.h"
 #include "Serial.h"
+#include "OLED.h"
+
 uint8_t TIMER_COUNT = 0;
 
 // 左轮速度(round/s)
@@ -50,8 +52,13 @@ int main(void) {
     NVIC_EnableIRQ(TIMER_GLOBAL_INST_INT_IRQN);
     Serial_Init();
     Encoder_Init();
+    // 初始化OLED
+    OLED_Init();
+    OLED_Clear();
+    OLED_ShowChar(1, 1, 'A', 16);
+    OLED_ShowString(0, 0, "Hello World", 16);
     printf("Start\n");
-    MotorControl(3000, 3000);
+    // MotorControl(3000, 3000);
     // 开启定时器
     DL_TimerG_startCounter(TIMER_GLOBAL_INST);
     while (1) {
