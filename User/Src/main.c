@@ -30,7 +30,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "PID.h"
 #include "ti_msp_dl_config.h"
 #include "inv_mpu.h"
 #include "Board.h"
@@ -42,17 +41,28 @@
 #include "OLED.h"
 #include "bsp_mpu6050.h"
 #include "Delay.h"
+#include "LM75A.h"
+#include "PID.h"
 uint8_t TIMER_COUNT = 0;
 
 // 左轮速度(round/s)
 float Left_rps;
 // 右轮速度(round/s)
 float Right_rps;
-
 int main(void) {
     SYSCFG_DL_init();
     // 初始化各种中断
     Board_init();
+    // 初始化串口
+    Serial_Init();
+    // 初始化编码器
+    Encoder_Init();
+    // 初始化OLED
+    // OLED_Init();
+    // OLED_ShowChar(1, 1, 'A');
+    // OLED_ShowChar(1, 2, 'B');
+    // OLED_ShowChar(1, 3, 'C');
+    printf("Start\n");
     // 初始化MPU6050
     MPU6050_Init();
     while (mpu_dmp_init()) {
@@ -60,26 +70,18 @@ int main(void) {
         delay_ms(200);
     }
     printf("Initialization Data Succeed \r\n");
-    // 初始化串口
-    Serial_Init();
-    // 初始化编码器
-    Encoder_Init();
-    // 初始化OLED
-    OLED_Init();
-    OLED_Clear();
-    printf("Start\n");
+    // 初始化LM75A温度传感器
+    LM75_Init();
     // 设置电机速度
     // MotorControl(0, 0);
-    // 实测编码器一圈约为420
-    // PID_Init(&PID_Position_Left, 25, 0.1, 10, 2 * 420);
-    // PID_Init(&PID_Position_Right, 25, 0.1, 10, 2 * 420);
+    // 实测编码器一圈约为520
     PID_Init(&PID_Speed_Left, 10, 25, 0, 3);
     PID_Init(&PID_Speed_Right, 10, 25, 0, 3);
     // 开启定时器
     DL_TimerG_startCounter(TIMER_GLOBAL_INST);
-
-    while (1)
-        ;
+    int i = 0;
+    while (1) {
+    };
 }
 
 void Position_Control() {
@@ -104,12 +106,22 @@ void TIMER_GLOBAL_INST_IRQHandler() {
             Left_rps = (float)Count_Left * 100 / 520;
             Right_rps = (float)Count_Right * 100 / 520;
             if (TIMER_COUNT % 5 == 0) {
-                // uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
-                // if (status == 0) {
-                //     printf("pitch =%d\r\n", (int)pitch);
-                //     printf("roll =%d\r\n", (int)roll);
-                //     printf("yaw =%d\r\n\r\n", (int)yaw);
-                // }
+                uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
+                if (status == 0) {
+                    printf("pitch =%d\r\n", (int)pitch);
+                    printf("roll =%d\r\n", (int)roll);
+                    printf("yaw =%d\r\n\r\n", (int)yaw);
+                }
+            }
+            if (TIMER_COUNT % 500 == 0) {
+                uint16_t temp = LM75_ReadTemp();
+                if ((temp & 0x8000) == 0x8000) {
+                    temp >>= 5;
+                    temperature = (int16_t)temp * -0.125;
+                } else {
+                    temp >>= 5;
+                    temperature = temp * 0.125;
+                }
                 TIMER_COUNT = 0;
             }
             // Position_Control();
@@ -117,7 +129,7 @@ void TIMER_GLOBAL_INST_IRQHandler() {
             PID_Speed_Right.now = Right_rps;
             Incremental_PID(&PID_Speed_Left);
             Incremental_PID(&PID_Speed_Right);
-            MotorControl(PID_Speed_Left.out, PID_Speed_Right.out);
+            // MotorControl(PID_Speed_Left.out, PID_Speed_Right.out);
             Count_Left = 0;
             Count_Right = 0;
             break;
