@@ -1,5 +1,10 @@
 #include "ti_msp_dl_config.h"
-
+/**
+ * @brief 电机控制
+ * 
+ * @param speedL 左电机占空比
+ * @param speedR 右电机占空比
+ */
 void MotorControl(float speedL, float speedR) {
     if (speedR >= 0) {
         DL_GPIO_setPins(GRP_RIGHT_AIN_PORT, GRP_RIGHT_AIN_RIGHT_AIN2_PIN);

@@ -25,7 +25,7 @@
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
 #include "bsp_mpu6050.h"
-#include "board.h"
+#include "Delay.h"
 
 
 #define MPU6050							//定义我们使用的传感器为MPU6050

@@ -30,10 +30,12 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "PID.h"
 #include "ti_msp_dl_config.h"
 #include "inv_mpu.h"
 #include "Board.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include "Motor.h"
 #include "Encoder.h"
 #include "Serial.h"
@@ -43,9 +45,9 @@
 uint8_t TIMER_COUNT = 0;
 
 // 左轮速度(round/s)
-float Speed_Left;
+float Left_rps;
 // 右轮速度(round/s)
-float Speed_Right;
+float Right_rps;
 
 int main(void) {
     SYSCFG_DL_init();
@@ -67,19 +69,31 @@ int main(void) {
     OLED_Clear();
     printf("Start\n");
     // 设置电机速度
-    MotorControl(0, 0);
-
+    // MotorControl(0, 0);
+    // 实测编码器一圈约为420
+    // PID_Init(&PID_Position_Left, 25, 0.1, 10, 2 * 420);
+    // PID_Init(&PID_Position_Right, 25, 0.1, 10, 2 * 420);
+    PID_Init(&PID_Speed_Left, 10, 25, 0, 3);
+    PID_Init(&PID_Speed_Right, 10, 25, 0, 3);
     // 开启定时器
     DL_TimerG_startCounter(TIMER_GLOBAL_INST);
 
-    while (1) {
-        uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
-        if (status == 0) {
-            printf("pitch =%d\r\n", (int)pitch);
-            printf("roll =%d\r\n", (int)roll);
-            printf("yaw =%d\r\n\r\n", (int)yaw);
-        }
-        delay_ms(20);
+    while (1)
+        ;
+}
+
+void Position_Control() {
+    PID_Position_Left.now += Count_Left;
+    PID_Position_Right.now += Count_Right;
+    if (PID_Position_Left.now == PID_Position_Left.target) {
+        PID_Position_Left.out = 0;
+    } else {
+        Position_PID(&PID_Position_Left);
+    }
+    if (PID_Position_Right.now == PID_Position_Right.target) {
+        PID_Position_Right.out = 0;
+    } else {
+        Position_PID(&PID_Position_Right);
     }
 }
 
@@ -87,18 +101,23 @@ void TIMER_GLOBAL_INST_IRQHandler() {
     TIMER_COUNT++;
     switch (DL_TimerG_getPendingInterrupt(TIMER_GLOBAL_INST)) {
         case DL_TIMERG_INTERRUPT_ZERO_EVENT:
+            Left_rps = (float)Count_Left * 100 / 520;
+            Right_rps = (float)Count_Right * 100 / 520;
             if (TIMER_COUNT % 5 == 0) {
-                uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
-                if (status == 0) {
-                    printf("pitch =%d\r\n", (int)pitch);
-                    printf("roll =%d\r\n", (int)roll);
-                    printf("yaw =%d\r\n\r\n", (int)yaw);
-                }
+                // uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
+                // if (status == 0) {
+                //     printf("pitch =%d\r\n", (int)pitch);
+                //     printf("roll =%d\r\n", (int)roll);
+                //     printf("yaw =%d\r\n\r\n", (int)yaw);
+                // }
                 TIMER_COUNT = 0;
             }
-            Speed_Left = (float)Count_Left * 100 / 520;
-            Speed_Right = (float)Count_Right * 100 / 520;
-            // printf("%.2f,%.2f\n", Speed_Left, Speed_Right);
+            // Position_Control();
+            PID_Speed_Left.now = Left_rps;
+            PID_Speed_Right.now = Right_rps;
+            Incremental_PID(&PID_Speed_Left);
+            Incremental_PID(&PID_Speed_Right);
+            MotorControl(PID_Speed_Left.out, PID_Speed_Right.out);
             Count_Left = 0;
             Count_Right = 0;
             break;
