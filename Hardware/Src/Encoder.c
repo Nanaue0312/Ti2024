@@ -1,6 +1,5 @@
 #include "ti_msp_dl_config.h"
 #include "Encoder.h"
-#include "stdbool.h"
 #include "stdio.h"
 int16_t Count_Left;
 int16_t Count_Right;

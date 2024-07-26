@@ -1,4 +1,3 @@
-#include <stdint.h>
 #include "UserFilters.h"
 
 DIFF_INT_FILTER FILTER_Speed_LEFT;

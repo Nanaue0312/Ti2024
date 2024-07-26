@@ -31,14 +31,15 @@
  */
 
 #include "ti_msp_dl_config.h"
-#include <stdint.h>
+#include "inv_mpu.h"
+#include "Board.h"
 #include <stdio.h>
 #include "Motor.h"
-#include "UserFilters.h"
 #include "Encoder.h"
 #include "Serial.h"
 #include "OLED.h"
-
+#include "bsp_mpu6050.h"
+#include "Delay.h"
 uint8_t TIMER_COUNT = 0;
 
 // 左轮速度(round/s)
@@ -48,20 +49,37 @@ float Speed_Right;
 
 int main(void) {
     SYSCFG_DL_init();
-    // 开启定时器10ms中断
-    NVIC_EnableIRQ(TIMER_GLOBAL_INST_INT_IRQN);
+    // 初始化各种中断
+    Board_init();
+    // 初始化MPU6050
+    MPU6050_Init();
+    while (mpu_dmp_init()) {
+        printf("dmp error\r\n");
+        delay_ms(200);
+    }
+    printf("Initialization Data Succeed \r\n");
+    // 初始化串口
     Serial_Init();
+    // 初始化编码器
     Encoder_Init();
     // 初始化OLED
     OLED_Init();
     OLED_Clear();
-    OLED_ShowChar(1, 1, 'A', 16);
-    OLED_ShowString(0, 0, "Hello World", 16);
     printf("Start\n");
-    // MotorControl(3000, 3000);
+    // 设置电机速度
+    MotorControl(0, 0);
+
     // 开启定时器
     DL_TimerG_startCounter(TIMER_GLOBAL_INST);
+
     while (1) {
+        uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
+        if (status == 0) {
+            printf("pitch =%d\r\n", (int)pitch);
+            printf("roll =%d\r\n", (int)roll);
+            printf("yaw =%d\r\n\r\n", (int)yaw);
+        }
+        delay_ms(20);
     }
 }
 
@@ -69,20 +87,20 @@ void TIMER_GLOBAL_INST_IRQHandler() {
     TIMER_COUNT++;
     switch (DL_TimerG_getPendingInterrupt(TIMER_GLOBAL_INST)) {
         case DL_TIMERG_INTERRUPT_ZERO_EVENT:
-            if (TIMER_COUNT % 100 == 0) {
+            if (TIMER_COUNT % 5 == 0) {
+                uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
+                if (status == 0) {
+                    printf("pitch =%d\r\n", (int)pitch);
+                    printf("roll =%d\r\n", (int)roll);
+                    printf("yaw =%d\r\n\r\n", (int)yaw);
+                }
                 TIMER_COUNT = 0;
-                Speed_Left = (float)Count_Left / 520;
-                Speed_Right = (float)Count_Right / 520;
-                // FILTER_Speed_LEFT.In = Speed_Left;
-                // FILTER_Speed_LEFT.gain = 256;
-                // Difference_Integration_Filtering(&FILTER_Speed_LEFT);
-                // FILTER_Speed_RIGHT.In = Speed_Right;
-                // FILTER_Speed_RIGHT.gain = 256;
-                // Difference_Integration_Filtering(&FILTER_Speed_RIGHT);
-                printf("%.2f,%.2f\n", Speed_Left, Speed_Right);
-                Count_Left = 0;
-                Count_Right = 0;
             }
+            Speed_Left = (float)Count_Left * 100 / 520;
+            Speed_Right = (float)Count_Right * 100 / 520;
+            // printf("%.2f,%.2f\n", Speed_Left, Speed_Right);
+            Count_Left = 0;
+            Count_Right = 0;
             break;
         default:
             break;
