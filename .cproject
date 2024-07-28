@@ -40,6 +40,10 @@
                                     <listOptionValue value="${PROJECT_ROOT}/System/Inc"/>
                                     <listOptionValue value="${PROJECT_ROOT}/User/Inc"/>
                                     <listOptionValue value="${PROJECT_ROOT}/Hardware/Inc"/>
+                                    <listOptionValue value="${PROJECT_ROOT}/Hardware/Inc/MPU6050"/>
+                                    <listOptionValue value="${PROJECT_ROOT}/Hardware/Inc/VL53L0X"/>
+                                    <listOptionValue value="${PROJECT_ROOT}/Hardware/Inc/VL53L0X/core"/>
+                                    <listOptionValue value="${PROJECT_ROOT}/Hardware/Inc/VL53L0X/platform"/>
                                     <listOptionValue value="${PROJECT_ROOT}/Driver/Inc"/>
                                     <listOptionValue value="${PROJECT_ROOT}/${ConfigName}"/>
                                     <listOptionValue value="${COM_TI_MSPM0_SDK_INSTALL_DIR}/source/third_party/CMSIS/Core/Include"/>

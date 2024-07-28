@@ -40,6 +40,7 @@
 #include "Serial.h"
 #include "OLED.h"
 #include "bsp_mpu6050.h"
+#include "bsp_VL53L0X.h"
 #include "Delay.h"
 #include "LM75A.h"
 #include "PID.h"
@@ -49,8 +50,10 @@ uint8_t TIMER_COUNT = 0;
 float Left_rps;
 // 右轮速度(round/s)
 float Right_rps;
+
+uint8_t mode = 0;
+VL53L0X_Error Status = VL53L0X_ERROR_NONE;
 int main(void) {
-    SYSCFG_DL_init();
     // 初始化各种中断
     Board_init();
     // 初始化串口
@@ -58,10 +61,10 @@ int main(void) {
     // 初始化编码器
     Encoder_Init();
     // 初始化OLED
-    // OLED_Init();
-    // OLED_ShowChar(1, 1, 'A');
-    // OLED_ShowChar(1, 2, 'B');
-    // OLED_ShowChar(1, 3, 'C');
+    OLED_Init();
+    OLED_ShowChar(1, 1, 'A');
+    OLED_ShowChar(1, 2, 'B');
+    OLED_ShowChar(1, 3, 'C');
     printf("Start\n");
     // 初始化MPU6050
     MPU6050_Init();
@@ -72,6 +75,17 @@ int main(void) {
     printf("Initialization Data Succeed \r\n");
     // 初始化LM75A温度传感器
     LM75_Init();
+    // TODO 多路激光测距还需测试，但已基本成功
+    while (vl53l0x_init(&vl53l0x_dev1, 1)) {
+        printf("VL53L0X Error!!!\n\r");
+        delay_ms(500);
+    }
+    printf("VL53L0X OK\r\n");
+
+    while (vl53l0x_set_mode(&vl53l0x_dev1, mode)) {
+        printf("Mode Set Error\r\n");
+        delay_ms(500);
+    }
     // 设置电机速度
     // MotorControl(0, 0);
     // 实测编码器一圈约为520
@@ -81,6 +95,7 @@ int main(void) {
     DL_TimerG_startCounter(TIMER_GLOBAL_INST);
     int i = 0;
     while (1) {
+        delay_ms(500);
     };
 }
 
@@ -106,11 +121,16 @@ void TIMER_GLOBAL_INST_IRQHandler() {
             Left_rps = (float)Count_Left * 100 / 520;
             Right_rps = (float)Count_Right * 100 / 520;
             if (TIMER_COUNT % 5 == 0) {
-                uint8_t status = mpu_dmp_get_data(&pitch, &roll, &yaw);
-                if (status == 0) {
-                    printf("pitch =%d\r\n", (int)pitch);
-                    printf("roll =%d\r\n", (int)roll);
-                    printf("yaw =%d\r\n\r\n", (int)yaw);
+                if (mpu_dmp_get_data(&pitch, &roll, &yaw) == 0) {
+                    // printf("pitch =%d\r\n", (int)pitch);
+                    // printf("roll =%d\r\n", (int)roll);
+                    // printf("yaw =%d\r\n\r\n", (int)yaw);
+                }
+                if (Status == VL53L0X_ERROR_NONE) {
+                    Status = VL53L0X_PerformSingleRangingMeasurement(&vl53l0x_dev1, &vl53l0x_data);
+                    printf("d: %4imm\r\n", vl53l0x_data.RangeMilliMeter);
+                } else {
+                    printf("error\r\n");
                 }
             }
             if (TIMER_COUNT % 500 == 0) {
